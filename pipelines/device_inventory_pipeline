@@ -1,0 +1,87 @@
+
+pipeline {
+
+    agent
+        { docker
+            {
+                image 'python:latest'
+            }
+    }
+
+    environment {
+        JENKINS_REPO_NAME = 'catalyst_center_as_code'
+        GITHUB_USERNAME = 'gzapodea'
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN')
+        PIPELINE_NAME = 'Device Inventory'
+        PYTHON_APP_NAME = 'device_inventory.py'
+        HOME = "${WORKSPACE}"
+    }
+
+    options {
+        skipStagesAfterUnstable()
+        timeout(time: 15, unit: 'MINUTES')
+    }
+
+    stages {
+
+        stage ('Build Python Environment') {
+            steps {
+                echo '\n\nJenkins ' + PIPELINE_NAME + ' build start..............................'
+                echo('\n\nBuilding the Docker container:..............................')
+                }
+            }
+
+        stage ('Install Python libraries') {
+            steps {
+                echo('\n\nInstalling Python libraries:..............................')
+                sh 'git clone https://' + GITHUB_USERNAME + ':' + GITHUB_TOKEN + '@github.com/zapodeanu/' + JENKINS_REPO_NAME + '.git'
+                withEnv(["HOME=${env.WORKSPACE}"]) {
+                    sh 'pip install -r ' + JENKINS_REPO_NAME + '/requirements.txt --no-warn-script-location'
+                    echo('\n\nVerify Python version and Libraries:..............................')
+                    sh 'python --version'
+                    sh 'pip3 list'
+                    echo('\n\nVerify Application Files:..............................')
+                    sh 'ls ' + JENKINS_REPO_NAME + '/'
+                }
+            }
+        }
+
+        stage ('Execute Python application') {
+            steps {
+                echo('\n\nCollect the inventory of devices managed by Cisco DNA Center:..............................')
+                withEnv(["HOME=${env.WORKSPACE}"]) {
+                    echo('\n\nVerify Working Path:..............................')
+                    sh 'pwd'
+                    dir(JENKINS_REPO_NAME) {
+                        sh 'python3 ' + PYTHON_APP_NAME
+                    }
+                }
+            }
+        }
+
+        stage ('Verify collected data - local folder') {
+            steps {
+                echo('\n\nThe inventory files that have been created:..............................')
+                withEnv(["HOME=${env.WORKSPACE}"]) {
+                    echo('\n\nVerify Working Path:..............................')
+                    sh 'pwd'
+                    dir(JENKINS_REPO_NAME + '/inventory') {
+                        sh 'ls -l -A'
+                    }
+                }
+            }
+        }
+
+    }
+
+    post {
+
+        cleanup {
+            cleanWs()
+        }
+
+        always {
+            echo '\n\nJenkins ' + PIPELINE_NAME + ' build end'
+        }
+    }
+}
