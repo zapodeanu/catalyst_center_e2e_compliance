@@ -1,6 +1,6 @@
 requests
 urllib3==1.26.15
-dnacentersdk
+dnacentersdk==2.8.9
 pyopenssl
 python-dotenv
 PyYAML
